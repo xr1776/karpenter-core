@@ -16,16 +16,21 @@ package nodegroup
 
 import (
 	"context"
-	scheduler "github.com/aws/karpenter-core/pkg/controllers/provisioning/scheduling"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
+	"github.com/aws/karpenter-core/pkg/cloudprovider"
+
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
+	scheduler "github.com/aws/karpenter-core/pkg/controllers/provisioning/scheduling"
+	"github.com/aws/karpenter-core/pkg/controllers/state"
+	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 )
 
 var _ corecontroller.TypedController[*v1alpha5.Provisioner] = (*Controller)(nil)
@@ -33,14 +38,18 @@ var _ corecontroller.TypedController[*v1alpha5.Provisioner] = (*Controller)(nil)
 // Controller for the resource
 type Controller struct {
 	kubeClient    client.Client
-	myProvisioner *Provisioner
+	myProvisioner *provisioning.Provisioner
+	cluster       *state.Cluster
+	cloudProvider cloudprovider.CloudProvider
 }
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client, myProvisioner *Provisioner) corecontroller.Controller {
+func NewController(kubeClient client.Client, myProvisioner *provisioning.Provisioner, cluster *state.Cluster, cp cloudprovider.CloudProvider) corecontroller.Controller {
 	return corecontroller.Typed[*v1alpha5.Provisioner](kubeClient, &Controller{
 		kubeClient:    kubeClient,
 		myProvisioner: myProvisioner,
+		cluster:       cluster,
+		cloudProvider: cp,
 	})
 }
 
@@ -56,11 +65,17 @@ func (c *Controller) Reconcile(ctx context.Context, provisioner *v1alpha5.Provis
 	logging.FromContext(ctx).Info("xryan received reconcile event for nodegroup provisioner")
 	// Launch the number of nodes specified
 	nodeTemplate := scheduler.NewMachineTemplate(provisioner)
-	topology, _ := scheduler.NewTopology(ctx, c.kubeClient, nil, nil, nil)
+	logging.FromContext(ctx).Info("xryan nodTemplate", nodeTemplate)
+	topology, _ := scheduler.NewTopology(ctx, c.kubeClient, c.cluster, nil, nil)
+	logging.FromContext(ctx).Info("xryan topoloy", topology)
 	var machines []*scheduler.Node
-	machine := scheduler.NewNode(nodeTemplate, topology, nil, nil)
+	instanceTypeOptions, _ := c.cloudProvider.GetInstanceTypes(ctx, provisioner)
+	logging.FromContext(ctx).Info("xryan instanceTypeOptions", instanceTypeOptions)
+	machine := scheduler.NewNode(nodeTemplate, topology, nil, instanceTypeOptions)
+	logging.FromContext(ctx).Info("xryan machine", machine)
 	machines = append(machines, machine)
-	c.myProvisioner.LaunchMachines(ctx, machines)
+	machinenames, _ := c.myProvisioner.LaunchMachines(ctx, machines)
+	logging.FromContext(ctx).Info("xryan printing machinenames", machinenames)
 	return reconcile.Result{}, nil
 }
 
