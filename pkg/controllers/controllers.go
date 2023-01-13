@@ -29,6 +29,7 @@ import (
 	metricsprovisioner "github.com/aws/karpenter-core/pkg/controllers/metrics/provisioner"
 	metricsstate "github.com/aws/karpenter-core/pkg/controllers/metrics/state"
 	"github.com/aws/karpenter-core/pkg/controllers/node"
+	"github.com/aws/karpenter-core/pkg/controllers/nodegroup"
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/controllers/state/informer"
@@ -69,5 +70,6 @@ func NewControllers(
 		metricsprovisioner.NewController(kubeClient),
 		counter.NewController(kubeClient, cluster),
 		inflightchecks.NewController(clock, kubeClient, eventRecorder, cloudProvider),
+		nodegroup.NewController(kubeClient),
 	}
 }

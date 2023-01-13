@@ -164,6 +164,10 @@ spec:
                     description: 'Name of the referent; More info: http://kubernetes.io/docs/user-guide/identifiers#names'
                     type: string
                 type: object
+              replicas:
+                description: Replicas is the number of
+                format: int64
+                type: integer
               requirements:
                 description: Requirements are layered with Labels and applied to every
                   node.

@@ -89,6 +89,9 @@ type ProvisionerSpec struct {
 	// Consolidation are the consolidation parameters
 	// +optional
 	Consolidation *Consolidation `json:"consolidation,omitempty"`
+	// Replicas is the number of
+	// +optional
+	Replicas *int64 `json:"replicas,omitempty"`
 }
 
 type Consolidation struct {
