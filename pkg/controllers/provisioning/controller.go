@@ -18,6 +18,8 @@ import (
 	"context"
 	"time"
 
+	"knative.dev/pkg/logging"
+
 	v1 "k8s.io/api/core/v1"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,7 +55,8 @@ func (c *Controller) Name() string {
 }
 
 // Reconcile the resource
-func (c *Controller) Reconcile(_ context.Context, p *v1.Pod) (reconcile.Result, error) {
+func (c *Controller) Reconcile(ctx context.Context, p *v1.Pod) (reconcile.Result, error) {
+	logging.FromContext(ctx).Info("xryan received reconcile event for provisioning controller")
 	if !pod.IsProvisionable(p) {
 		return reconcile.Result{}, nil
 	}

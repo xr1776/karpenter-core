@@ -16,29 +16,31 @@ package nodegroup
 
 import (
 	"context"
+	scheduler "github.com/aws/karpenter-core/pkg/controllers/provisioning/scheduling"
 
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 )
 
 var _ corecontroller.TypedController[*v1alpha5.Provisioner] = (*Controller)(nil)
 
 // Controller for the resource
 type Controller struct {
-	kubeClient client.Client
+	kubeClient    client.Client
+	myProvisioner *Provisioner
 }
 
 // NewController constructs a controller instance
-func NewController(kubeClient client.Client) corecontroller.Controller {
+func NewController(kubeClient client.Client, myProvisioner *Provisioner) corecontroller.Controller {
 	return corecontroller.Typed[*v1alpha5.Provisioner](kubeClient, &Controller{
-		kubeClient: kubeClient,
+		kubeClient:    kubeClient,
+		myProvisioner: myProvisioner,
 	})
 }
 
@@ -51,7 +53,14 @@ func (c *Controller) Reconcile(ctx context.Context, provisioner *v1alpha5.Provis
 	if provisioner.Spec.Replicas == nil {
 		return reconcile.Result{}, nil
 	}
-	logging.FromContext(ctx).Info("received reconcile event for nodegroup provisioner")
+	logging.FromContext(ctx).Info("xryan received reconcile event for nodegroup provisioner")
+	// Launch the number of nodes specified
+	nodeTemplate := scheduler.NewMachineTemplate(provisioner)
+	topology, _ := scheduler.NewTopology(ctx, c.kubeClient, nil, nil, nil)
+	var machines []*scheduler.Node
+	machine := scheduler.NewNode(nodeTemplate, topology, nil, nil)
+	machines = append(machines, machine)
+	c.myProvisioner.LaunchMachines(ctx, machines)
 	return reconcile.Result{}, nil
 }
 
